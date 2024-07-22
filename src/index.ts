@@ -20,6 +20,10 @@ program
     'Name of a subdirectory with exported JPEGs',
     'Export'
   )
+  .option(
+    '-dp, --export-date-prefix',
+    'Whether or not the exports are prefixed with a date (e.g. YYYYMMDD-raw_filename.jpg)'
+  )
   .option('-tr, --type-raw <ext>', 'Extension of RAW files', 'ARW')
   .option('-te, --type-edited <ext>', 'Extension of edited files', 'jpg')
   .action(
@@ -27,6 +31,7 @@ program
       dir: string,
       options: {
         exportDirName: string;
+        exportDatePrefix?: boolean;
         typeRaw: string;
         typeEdited: string;
       }
@@ -59,6 +64,19 @@ program
         );
         exit(1);
       }
+      // check that the edited files are named correctly (YYYYMMDD-raw_filename.jpg)
+      if (options.exportDatePrefix) {
+        const datePattern = /^\d{8}-/; // e.g. 20210814-
+        const invalidFiles = editedFiles.filter(
+          editedFile => !datePattern.test(editedFile)
+        );
+        if (invalidFiles.length > 0) {
+          console.error(
+            `There are ${invalidFiles.length} files in the export directory that do not have the expected date prefix. Check the files and try with the --export-date-prefix option again.`
+          );
+          exit(1);
+        }
+      }
 
       let rawFiles: string[] = [];
       try {
@@ -68,9 +86,12 @@ program
         exit(1);
       }
 
+      const compareFiles = options.exportDatePrefix
+        ? editedFiles.map(editedFile => editedFile.replace(/^\d{8}-/, ''))
+        : editedFiles;
       const rawsWithoutEdits = rawFiles.filter(
         rawFile =>
-          !editedFiles.includes(
+          !compareFiles.includes(
             rawFile.replace(options.typeRaw, options.typeEdited)
           )
       );
