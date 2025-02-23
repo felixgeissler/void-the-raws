@@ -6,9 +6,14 @@ export const getFilesByExtension = async (
   fileExtension: string
 ) => {
   const files = await readdir(directory);
-  return files.filter(
-    file =>
-      path.extname(file).toLowerCase() === `.${fileExtension.toLowerCase()}`
+  return (
+    files
+      .filter(
+        file =>
+          path.extname(file).toLowerCase() === `.${fileExtension.toLowerCase()}`
+      )
+      // assure shell safety
+      .map(file => file.replace(/ /g, '\\ '))
   );
 };
 
