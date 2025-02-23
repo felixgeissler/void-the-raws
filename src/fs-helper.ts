@@ -6,7 +6,10 @@ export const getFilesByExtension = async (
   fileExtension: string
 ) => {
   const files = await readdir(directory);
-  return files.filter(file => path.extname(file) === `.${fileExtension}`);
+  return files.filter(
+    file =>
+      path.extname(file).toLowerCase() === `.${fileExtension.toLowerCase()}`
+  );
 };
 
 export const getFilesByPrefix = async (directory: string, prefix: string) => {
