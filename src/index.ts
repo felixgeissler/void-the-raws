@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import { unlink } from 'fs/promises';
 import path from 'path';
 import { exit } from 'process';
+import { getMp4Codec, reencodeMp4ToH265 } from './ffmpeg-helper';
 import { getFilesByExtension, getFilesByPrefix } from './fs-helper';
 import { version } from './version';
 
@@ -138,6 +139,78 @@ program
 
       console.log('');
       console.log('Done!');
+    }
+  );
+
+program
+  .command('encode')
+  .argument('dir', 'Directory to check for MP4 files')
+  .description(
+    'Check MP4 files in a directory for H.264 codec and reencode them to H.265'
+  )
+  .option(
+    '-c, --concurrency <number>',
+    'Number of files to reencode concurrently (ffmpeg jobs)',
+    '2'
+  )
+  .action(
+    async (
+      dir: string,
+      options: {
+        concurrency: string;
+      }
+    ) => {
+      const reencodeConcurrencyLimit = parseInt(options.concurrency, 10);
+      if (reencodeConcurrencyLimit < 1) {
+        console.error(`Invalid concurrency limit: ${options.concurrency}`);
+        exit(1);
+      }
+
+      const videoDir = path.normalize(dir);
+      const mp4Files = await getFilesByExtension(videoDir, 'mp4');
+
+      const mp4FilesToReencode: string[] = [];
+      for (const mp4File of mp4Files) {
+        const codec = await getMp4Codec(path.join(videoDir, mp4File));
+        if (codec === 'h264') {
+          mp4FilesToReencode.push(mp4File);
+        }
+      }
+
+      if (mp4FilesToReencode.length === 0) {
+        console.log('No MP4 files using H.264 codec found.');
+        console.log('');
+        console.log('Done!');
+        return;
+      }
+
+      console.log(
+        `There are ${mp4FilesToReencode.length} MP4 files using H.264 codec that can be reencoded to save disk space.`
+      );
+      const reencodeMp4 = await confirm({
+        message: `Do you want to reencode the MP4 files using H.265?`,
+        default: false,
+      });
+      if (!reencodeMp4) {
+        console.log('');
+        console.log('Nothing to do.');
+        return;
+      }
+
+      console.log('Reencoding MP4 files...');
+      for (
+        let i = 0;
+        i < mp4FilesToReencode.length;
+        i += reencodeConcurrencyLimit
+      ) {
+        const batch = mp4FilesToReencode.slice(i, i + reencodeConcurrencyLimit);
+        await Promise.all(
+          batch.map(mp4File => {
+            const filePath = path.join(videoDir, mp4File);
+            return reencodeMp4ToH265(filePath);
+          })
+        );
+      }
     }
   );
 
