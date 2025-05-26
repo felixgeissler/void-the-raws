@@ -1,5 +1,6 @@
 import { confirm } from '@inquirer/prompts';
 import { Command } from 'commander';
+import { ExifDateTime, exiftool } from 'exiftool-vendored';
 import { unlink } from 'fs/promises';
 import path from 'path';
 import { exit } from 'process';
@@ -211,6 +212,131 @@ program
           })
         );
       }
+    }
+  );
+
+program
+  .command('fix-gps-metadata')
+  .argument('dir', 'Directory to check for GPS metadata in JPEG files')
+  .description(
+    "Restores missing GPS timestamps by converting the photo's original creation time to UTC and writing it as GPSDateStamp and GPSTimeStamp for accurate timezone handling. Fixes the issue where Lightroom won't write GPSDateStamp and GPSTimeStamp on manually geotagged photos, which can lead to timezone shifts when importing JPEGs into Google Photos."
+  )
+  .option(
+    '-e, --export-dir-name <name>',
+    'Name of a subdirectory with exported JPEGs',
+    'Export'
+  )
+  .option('-v, --verbose', 'Enable verbose output / debug mode', false)
+  .option('-te, --type-edited <ext>', 'Extension of edited files', 'jpg')
+  .action(
+    async (
+      dir: string,
+      options: {
+        verbose: boolean;
+        exportDirName: string;
+      }
+    ) => {
+      const updateGpsFromCreationDate = async (filePath: string) => {
+        const metadata = await exiftool.read(filePath);
+        const dateTimeOriginal = metadata.DateTimeOriginal;
+
+        if (!(dateTimeOriginal instanceof ExifDateTime)) {
+          console.warn(
+            `⚠️  DateTimeOriginal is not a valid ExifDateTime in ${filePath}`
+          );
+          return false;
+        }
+
+        const hasGpsTime = metadata.GPSTimeStamp || metadata.GPSDateStamp;
+        if (hasGpsTime) {
+          if (options.verbose) {
+            console.log(
+              `↩ Skipping file - already has GPS timestamp: ${path.basename(filePath)}`
+            );
+          }
+          return false;
+        }
+
+        let utcISOString = dateTimeOriginal.toISOString(); // this is not in UTC yet!
+        if (!utcISOString) {
+          console.warn(
+            `⚠️  Could not convert DateTimeOriginal to ISO string in ${filePath}`
+          );
+          return false;
+        }
+        utcISOString = new Date(utcISOString).toISOString(); // convert to UTC
+        const [datePart, timePart] = utcISOString.split('T');
+        const gpsDateStamp = datePart.replace(/-/g, ':');
+        const timeWithoutMs = timePart.split('.')[0];
+        if (timeWithoutMs.length !== 8) {
+          console.warn(
+            `⚠️  Time part is not in the expected format (HH:mm:ss) in ${filePath}`
+          );
+          return false;
+        }
+
+        let shouldWrite = true;
+        if (options.verbose) {
+          console.log(`📸 ${path.basename(filePath)}`);
+          console.log(`→ DateTimeOriginal: ${dateTimeOriginal}`);
+          console.log(`→ GPSDateStamp:     ${gpsDateStamp}`);
+          console.log(`→ GPSTimeStamp:     ${timeWithoutMs}`);
+
+          shouldWrite = await confirm({
+            message: 'Write GPS timestamp to this file?',
+            default: true,
+          });
+        }
+
+        if (!shouldWrite) {
+          console.log('⏭️ Skipped.\n');
+          return false;
+        }
+
+        await exiftool.write(filePath, {
+          GPSDateStamp: gpsDateStamp,
+          GPSTimeStamp: timeWithoutMs,
+        });
+        console.log(`🔧 Fixed GPS metadata for ${path.basename(filePath)}`);
+        const tmpFilePath = filePath + '_original';
+        await unlink(tmpFilePath);
+        return true;
+      };
+
+      const rawDir = path.normalize(dir);
+      const exportDir = path.join(rawDir, options.exportDirName);
+
+      let editedFiles: string[] = [];
+      try {
+        editedFiles = await getFilesByExtension(exportDir, 'jpg');
+      } catch (error) {
+        console.error(
+          `Could not read export directory: ${exportDir}. Make sure it exists or consider using the --export-dir-name <name> option.`
+        );
+        exit(1);
+      }
+
+      if (editedFiles.length === 0) {
+        console.log('No  files found.');
+        exit(0);
+      }
+
+      let fixedFilesCount = 0;
+      for (const file of editedFiles) {
+        const fullPath = path.join(exportDir, file);
+        try {
+          const wasFixed = await updateGpsFromCreationDate(fullPath);
+          if (wasFixed) fixedFilesCount++;
+        } catch (err) {
+          console.error(`❌ Error with ${file}:`, err);
+        }
+      }
+      console.log(
+        fixedFilesCount
+          ? `\n✅ Fixed GPS metadata in ${fixedFilesCount} files from ${editedFiles.length} total files.`
+          : '\nNo files were fixed. All files already had GPS metadata.'
+      );
+      await exiftool.end();
     }
   );
 

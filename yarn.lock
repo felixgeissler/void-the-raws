@@ -324,6 +324,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@photostructure/tz-lookup@npm:^11.2.0":
+  version: 11.2.0
+  resolution: "@photostructure/tz-lookup@npm:11.2.0"
+  checksum: 10c0/25cc546154b608f29ed80d0008cf44aef959f598a29978e6f3ad87280119a48b5981544b5f31df8750e50024069477751bc179cb7bfdb1ad1cce49828b3b66ce
+  languageName: node
+  linkType: hard
+
 "@pkgr/core@npm:^0.1.0":
   version: 0.1.1
   resolution: "@pkgr/core@npm:0.1.1"
@@ -342,6 +349,13 @@ __metadata:
   version: 1.5.8
   resolution: "@types/figlet@npm:1.5.8"
   checksum: 10c0/b61385ca7d7c7716a7ee63d421b24d851fbe9ea43e67a746e0f90212fa6502fe9e34bf5b5e6761c363b828cd87eb953fc55b2f48bfe2801c309e0077230474c3
+  languageName: node
+  linkType: hard
+
+"@types/luxon@npm:^3.6.2":
+  version: 3.6.2
+  resolution: "@types/luxon@npm:3.6.2"
+  checksum: 10c0/7572ee52b3d3e9dd10464b90561a728b90f34b9a257751cc3ce23762693dd1d14fa98b7f103e2efe2c6f49033331f91de5681ffd65cca88618cefe555be326db
   languageName: node
   linkType: hard
 
@@ -653,6 +667,13 @@ __metadata:
   version: 1.0.2
   resolution: "balanced-match@npm:1.0.2"
   checksum: 10c0/9308baf0a7e4838a82bbfd11e01b1cb0f0cf2893bc1676c27c2a8c0e70cbae1c59120c3268517a8ae7fb6376b4639ef81ca22582611dbee4ed28df945134aaee
+  languageName: node
+  linkType: hard
+
+"batch-cluster@npm:^13.0.0":
+  version: 13.0.0
+  resolution: "batch-cluster@npm:13.0.0"
+  checksum: 10c0/d48735c64328440400298ab0259409102cf7538465e337900a360befe75df3019c43523bb7c718caed4f2df0506c2dbf2865873c085d4fe71974727252c6d6a0
   languageName: node
   linkType: hard
 
@@ -1059,6 +1080,42 @@ __metadata:
   languageName: node
   linkType: hard
 
+"exiftool-vendored.exe@npm:13.29.0":
+  version: 13.29.0
+  resolution: "exiftool-vendored.exe@npm:13.29.0"
+  conditions: os=win32
+  languageName: node
+  linkType: hard
+
+"exiftool-vendored.pl@npm:13.29.0":
+  version: 13.29.0
+  resolution: "exiftool-vendored.pl@npm:13.29.0"
+  bin:
+    exiftool: bin/exiftool
+  conditions: "!os=win32"
+  languageName: node
+  linkType: hard
+
+"exiftool-vendored@npm:^30.0.0":
+  version: 30.0.0
+  resolution: "exiftool-vendored@npm:30.0.0"
+  dependencies:
+    "@photostructure/tz-lookup": "npm:^11.2.0"
+    "@types/luxon": "npm:^3.6.2"
+    batch-cluster: "npm:^13.0.0"
+    exiftool-vendored.exe: "npm:13.29.0"
+    exiftool-vendored.pl: "npm:13.29.0"
+    he: "npm:^1.2.0"
+    luxon: "npm:^3.6.1"
+  dependenciesMeta:
+    exiftool-vendored.exe:
+      optional: true
+    exiftool-vendored.pl:
+      optional: true
+  checksum: 10c0/47e62b4d9a0409bc9504abf9a48ac7f23c69ca17e4c191ae8bafc62760c20aebe83cb536dfb1fcce8677c021bce095d3c0e8056bfa3d29797f1e01186a4e1efd
+  languageName: node
+  linkType: hard
+
 "external-editor@npm:^3.1.0":
   version: 3.1.0
   resolution: "external-editor@npm:3.1.0"
@@ -1284,6 +1341,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"he@npm:^1.2.0":
+  version: 1.2.0
+  resolution: "he@npm:1.2.0"
+  bin:
+    he: bin/he
+  checksum: 10c0/a27d478befe3c8192f006cdd0639a66798979dfa6e2125c6ac582a19a5ebfec62ad83e8382e6036170d873f46e4536a7e795bf8b95bf7c247f4cc0825ccc8c17
+  languageName: node
+  linkType: hard
+
 "iconv-lite@npm:^0.4.24":
   version: 0.4.24
   resolution: "iconv-lite@npm:0.4.24"
@@ -1473,6 +1539,13 @@ __metadata:
   version: 1.9.1
   resolution: "loglevel@npm:1.9.1"
   checksum: 10c0/152f0501cea367cf998c844a38b19f0b5af555756ad7d8650214a1f8c6a5b045e31b8cf5dae27d28339a061624ce3f618aadb333aed386cac041d6ddc5101a39
+  languageName: node
+  linkType: hard
+
+"luxon@npm:^3.6.1":
+  version: 3.6.1
+  resolution: "luxon@npm:3.6.1"
+  checksum: 10c0/906d57a9dc4d1de9383f2e9223e378c298607c1b4d17b6657b836a3cd120feb1c1de3b5d06d846a3417e1ca764de8476e8c23b3cd4083b5cdb870adcb06a99d5
   languageName: node
   linkType: hard
 
@@ -1998,6 +2071,7 @@ __metadata:
     eslint: "npm:^9.7.0"
     eslint-config-prettier: "npm:^9.1.0"
     eslint-plugin-prettier: "npm:^5.2.1"
+    exiftool-vendored: "npm:^30.0.0"
     globals: "npm:^15.8.0"
     prettier: "npm:^3.3.3"
     prettier-eslint: "npm:^16.3.0"
