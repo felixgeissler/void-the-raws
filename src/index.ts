@@ -167,8 +167,9 @@ program
         exit(1);
       }
 
-      const videoDir = path.normalize(dir);
+      let videoDir = path.normalize(dir);
       const mp4Files = await getFilesByExtension(videoDir, 'mp4');
+      videoDir = videoDir.replace(/ /g, '\\ ');
 
       const mp4FilesToReencode: string[] = [];
       for (const mp4File of mp4Files) {
