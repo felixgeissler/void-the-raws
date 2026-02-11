@@ -404,11 +404,24 @@ program
         rawCount: number;
         exportCount: number;
         cleanable: boolean;
+        warnings: string[];
       }
 
       const analysisResults: DirectoryAnalysis[] = [];
 
+      // Output configuration information
       console.log(`Analyzing ${subdirectories.length} subdirectories...\n`);
+      console.log('Configuration:');
+      console.log(`  Root Path:         ${rootDir}`);
+      console.log(`  Export Directory:  ${options.exportDirName}/`);
+      console.log(`  RAW Extension:     *.${options.typeRaw}`);
+      console.log(`  Export Extension:  *.${options.typeEdited}`);
+      if (options.exportDatePrefix) {
+        console.log(
+          `  Export Naming:     YYYYMMDD-filename.${options.typeEdited}`
+        );
+      }
+      console.log('');
 
       for (const subdir of subdirectories) {
         const subdirPath = path.join(rootDir, subdir);
@@ -427,30 +440,44 @@ program
 
         // Get export files count
         let exportFiles: string[] = [];
+        let exportDirExists = false;
         try {
           exportFiles = await getFilesByExtension(
             exportDir,
             options.typeEdited
           );
+          exportDirExists = true;
         } catch (error) {
           // Export directory doesn't exist or can't be read
         }
 
-        // Determine if cleanable (same logic as clean command)
+        const warnings: string[] = [];
+
+        // Check for alternative export directories if the expected one doesn't exist
+        if (!exportDirExists && rawFiles.length > 0) {
+          try {
+            const subdirsInDir = await getSubdirectories(subdirPath);
+            if (subdirsInDir.length > 0) {
+              warnings.push(
+                `Expected export directory '${options.exportDirName}' not found. Found subdirectories: ${subdirsInDir.join(', ')}`
+              );
+            } else {
+              warnings.push(
+                `No subdirectories found (expected export directory '${options.exportDirName}' is missing)`
+              );
+            }
+          } catch (error) {
+            // Can't read subdirectories
+          }
+        }
+
+        // Determine if cleanable - new logic: check if exports >= RAWs
+        // If exports < RAWs, then cleaning is advised
         let cleanable = false;
-        if (rawFiles.length > 0 && exportFiles.length > 0) {
-          const compareFiles = options.exportDatePrefix
-            ? exportFiles.map(editedFile => editedFile.replace(/^\d{8}-/, ''))
-            : exportFiles;
-          const rawsWithoutEdits = rawFiles.filter(rawFile => {
-            // Replace extension at the end of the filename
-            const expectedExportName = rawFile.replace(
-              new RegExp(`\\.${options.typeRaw}$`, 'i'),
-              `.${options.typeEdited}`
-            );
-            return !compareFiles.includes(expectedExportName);
-          });
-          cleanable = rawsWithoutEdits.length > 0;
+        if (rawFiles.length > 0) {
+          if (exportFiles.length < rawFiles.length) {
+            cleanable = true;
+          }
         }
 
         analysisResults.push({
@@ -459,6 +486,7 @@ program
           rawCount: rawFiles.length,
           exportCount: exportFiles.length,
           cleanable,
+          warnings,
         });
       }
 
@@ -492,7 +520,7 @@ program
       console.log('Analysis Results:');
       console.log('─'.repeat(100));
       console.log(
-        `${'Directory'.padEnd(30)} | ${'Size'.padEnd(12)} | ${'RAWs'.padEnd(6)} | ${'Exports'.padEnd(8)} | Cleanable`
+        `${'Directory'.padEnd(30)} | ${'Size'.padEnd(12)} | ${'RAWs'.padEnd(6)} | ${'Exports'.padEnd(8)} | Clean Advised`
       );
       console.log('─'.repeat(100));
 
@@ -507,9 +535,32 @@ program
       }
 
       console.log('─'.repeat(100));
-      console.log(
-        `\nTotal: ${analysisResults.length} directories, ${analysisResults.reduce((sum, r) => sum + r.rawCount, 0)} RAW files, ${analysisResults.reduce((sum, r) => sum + r.exportCount, 0)} exports`
+      const totalSize = analysisResults.reduce(
+        (sum, r) => sum + r.totalSize,
+        0
       );
+      const totalRaws = analysisResults.reduce((sum, r) => sum + r.rawCount, 0);
+      const totalExports = analysisResults.reduce(
+        (sum, r) => sum + r.exportCount,
+        0
+      );
+      console.log(
+        `\nTotal: ${analysisResults.length} directories, ${formatSize(totalSize)} disk space, ${totalRaws} RAW files, ${totalExports} exports`
+      );
+
+      // Display warnings for directories with issues
+      const dirsWithWarnings = analysisResults.filter(
+        r => r.warnings.length > 0
+      );
+      if (dirsWithWarnings.length > 0) {
+        console.log('\n⚠️  Warnings:');
+        for (const result of dirsWithWarnings) {
+          console.log(`\n  ${result.name}:`);
+          for (const warning of result.warnings) {
+            console.log(`    - ${warning}`);
+          }
+        }
+      }
     }
   );
 
