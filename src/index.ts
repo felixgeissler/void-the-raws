@@ -366,7 +366,11 @@ program
   )
   .option('-tr, --type-raw <ext>', 'Extension of RAW files', 'ARW')
   .option('-te, --type-edited <ext>', 'Extension of edited files', 'jpg')
-  .option('-s, --sort <field>', 'Sort by: name, size, or files', 'name')
+  .option(
+    '-s, --sort <field>',
+    'Sort by: name, size, or files (sorts by RAW file count)',
+    'name'
+  )
   .action(
     async (
       root: string,
@@ -493,8 +497,12 @@ program
       console.log('─'.repeat(100));
 
       for (const result of analysisResults) {
+        const displayName =
+          result.name.length > 30
+            ? result.name.substring(0, 27) + '...'
+            : result.name.padEnd(30);
         console.log(
-          `${result.name.padEnd(30)} | ${formatSize(result.totalSize).padEnd(12)} | ${result.rawCount.toString().padEnd(6)} | ${result.exportCount.toString().padEnd(8)} | ${result.cleanable ? '✓' : '✗'}`
+          `${displayName} | ${formatSize(result.totalSize).padEnd(12)} | ${result.rawCount.toString().padEnd(6)} | ${result.exportCount.toString().padEnd(8)} | ${result.cleanable ? '✓' : '✗'}`
         );
       }
 
