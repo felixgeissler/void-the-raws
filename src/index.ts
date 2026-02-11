@@ -5,7 +5,12 @@ import { unlink } from 'fs/promises';
 import path from 'path';
 import { exit } from 'process';
 import { getMp4Codec, reencodeMp4ToH265 } from './ffmpeg-helper';
-import { getFilesByExtension, getFilesByPrefix } from './fs-helper';
+import {
+  getFilesByExtension,
+  getFilesByPrefix,
+  getSubdirectories,
+  getDirectorySize,
+} from './fs-helper';
 import { version } from './version';
 
 const program = new Command();
@@ -338,6 +343,163 @@ program
           : '\nNo files were fixed. All files already had GPS metadata.'
       );
       await exiftool.end();
+    }
+  );
+
+program
+  .command('analyze')
+  .argument(
+    'root',
+    'Root directory containing image/media album subdirectories'
+  )
+  .description(
+    'Analyze subdirectories for disk usage, RAW files, exports, and cleanability'
+  )
+  .option(
+    '-e, --export-dir-name <name>',
+    'Name of a subdirectory with exported JPEGs',
+    'Export'
+  )
+  .option(
+    '-dp, --export-date-prefix',
+    'Whether or not the exports are prefixed with a date (e.g. YYYYMMDD-raw_filename.jpg)'
+  )
+  .option('-tr, --type-raw <ext>', 'Extension of RAW files', 'ARW')
+  .option('-te, --type-edited <ext>', 'Extension of edited files', 'jpg')
+  .option('-s, --sort <field>', 'Sort by: name, size, or files', 'name')
+  .action(
+    async (
+      root: string,
+      options: {
+        exportDirName: string;
+        exportDatePrefix?: boolean;
+        typeRaw: string;
+        typeEdited: string;
+        sort: string;
+      }
+    ) => {
+      const rootDir = path.normalize(root);
+
+      // Get all subdirectories
+      let subdirectories: string[];
+      try {
+        subdirectories = await getSubdirectories(rootDir);
+      } catch (error) {
+        console.error(`Could not read root directory: ${rootDir}`);
+        exit(1);
+      }
+
+      if (subdirectories.length === 0) {
+        console.log('No subdirectories found.');
+        exit(0);
+      }
+
+      interface DirectoryAnalysis {
+        name: string;
+        totalSize: number;
+        rawCount: number;
+        exportCount: number;
+        cleanable: boolean;
+      }
+
+      const analysisResults: DirectoryAnalysis[] = [];
+
+      console.log(`Analyzing ${subdirectories.length} subdirectories...\n`);
+
+      for (const subdir of subdirectories) {
+        const subdirPath = path.join(rootDir, subdir);
+        const exportDir = path.join(subdirPath, options.exportDirName);
+
+        // Get total size
+        const totalSize = await getDirectorySize(subdirPath);
+
+        // Get RAW files count
+        let rawFiles: string[] = [];
+        try {
+          rawFiles = await getFilesByExtension(subdirPath, options.typeRaw);
+        } catch (error) {
+          // Directory doesn't have RAW files or can't be read, skip
+        }
+
+        // Get export files count
+        let exportFiles: string[] = [];
+        try {
+          exportFiles = await getFilesByExtension(
+            exportDir,
+            options.typeEdited
+          );
+        } catch (error) {
+          // Export directory doesn't exist or can't be read
+        }
+
+        // Determine if cleanable (same logic as clean command)
+        let cleanable = false;
+        if (rawFiles.length > 0 && exportFiles.length > 0) {
+          const compareFiles = options.exportDatePrefix
+            ? exportFiles.map(editedFile => editedFile.replace(/^\d{8}-/, ''))
+            : exportFiles;
+          const rawsWithoutEdits = rawFiles.filter(
+            rawFile =>
+              !compareFiles.includes(
+                rawFile.replace(options.typeRaw, options.typeEdited)
+              )
+          );
+          cleanable = rawsWithoutEdits.length > 0;
+        }
+
+        analysisResults.push({
+          name: subdir,
+          totalSize,
+          rawCount: rawFiles.length,
+          exportCount: exportFiles.length,
+          cleanable,
+        });
+      }
+
+      // Sort results
+      switch (options.sort) {
+        case 'size':
+          analysisResults.sort((a, b) => b.totalSize - a.totalSize);
+          break;
+        case 'files':
+          analysisResults.sort((a, b) => b.rawCount - a.rawCount);
+          break;
+        case 'name':
+        default:
+          analysisResults.sort((a, b) => a.name.localeCompare(b.name));
+          break;
+      }
+
+      // Format size for display
+      const formatSize = (bytes: number): string => {
+        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        let size = bytes;
+        let unitIndex = 0;
+        while (size >= 1024 && unitIndex < units.length - 1) {
+          size /= 1024;
+          unitIndex++;
+        }
+        return `${size.toFixed(2)} ${units[unitIndex]}`;
+      };
+
+      // Display results in table format
+      console.log('Analysis Results:');
+      console.log('─'.repeat(100));
+      console.log(
+        `${'Directory'.padEnd(30)} | ${'Size'.padEnd(12)} | ${'RAWs'.padEnd(6)} | ${'Exports'.padEnd(8)} | Cleanable`
+      );
+      console.log('─'.repeat(100));
+
+      for (const result of analysisResults) {
+        console.log(
+          `${result.name.padEnd(30)} | ${formatSize(result.totalSize).padEnd(12)} | ${result.rawCount.toString().padEnd(6)} | ${result.exportCount.toString().padEnd(8)} | ${result.cleanable ? '✓' : '✗'}`
+        );
+      }
+
+      console.log('─'.repeat(100));
+      console.log(
+        `\nTotal: ${analysisResults.length} directories, ${analysisResults.reduce((sum, r) => sum + r.rawCount, 0)} RAW files, ${analysisResults.reduce((sum, r) => sum + r.exportCount, 0)} exports`
+      );
     }
   );
 
