@@ -438,12 +438,14 @@ program
           const compareFiles = options.exportDatePrefix
             ? exportFiles.map(editedFile => editedFile.replace(/^\d{8}-/, ''))
             : exportFiles;
-          const rawsWithoutEdits = rawFiles.filter(
-            rawFile =>
-              !compareFiles.includes(
-                rawFile.replace(options.typeRaw, options.typeEdited)
-              )
-          );
+          const rawsWithoutEdits = rawFiles.filter(rawFile => {
+            // Replace extension at the end of the filename
+            const expectedExportName = rawFile.replace(
+              new RegExp(`\\.${options.typeRaw}$`, 'i'),
+              `.${options.typeEdited}`
+            );
+            return !compareFiles.includes(expectedExportName);
+          });
           cleanable = rawsWithoutEdits.length > 0;
         }
 

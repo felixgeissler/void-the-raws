@@ -28,18 +28,20 @@ export const getSubdirectories = async (directory: string) => {
 };
 
 export const getDirectorySize = async (directory: string): Promise<number> => {
-  let totalSize = 0;
   const entries = await readdir(directory, { withFileTypes: true });
 
-  for (const entry of entries) {
-    const fullPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) {
-      totalSize += await getDirectorySize(fullPath);
-    } else if (entry.isFile()) {
-      const stats = await stat(fullPath);
-      totalSize += stats.size;
-    }
-  }
+  const sizes = await Promise.all(
+    entries.map(async entry => {
+      const fullPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        return await getDirectorySize(fullPath);
+      } else if (entry.isFile()) {
+        const stats = await stat(fullPath);
+        return stats.size;
+      }
+      return 0;
+    })
+  );
 
-  return totalSize;
+  return sizes.reduce((total, size) => total + size, 0);
 };
