@@ -13,11 +13,7 @@ const compat = new FlatCompat({
 
 export default [
   {
-    ignores: [
-      '.yarn',
-      'build',
-      '.pnp.*',
-    ],
+    ignores: ['.yarn', 'build', '.pnp.*'],
   },
   ...compat
     .extends(

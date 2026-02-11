@@ -12,6 +12,7 @@ export const getMp4Codec = async (filePath: string): Promise<string> => {
 export const reencodeMp4ToH265 = async (filePath: string) => {
   console.log(`Starting reencoding of ${filePath}...`);
   const execPromise = util.promisify(exec);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { stdout, stderr } = await execPromise(
     `ffmpeg -i ${filePath} -c:v libx265 -crf 24 -preset slow -c:a aac -b:a 128k -tag:v hvc1 -map_metadata 0 -movflags use_metadata_tags ${filePath.replace(
       '.mp4',
