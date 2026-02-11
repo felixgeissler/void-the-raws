@@ -1,0 +1,26 @@
+name: Check linting & formatting
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ['main']
+  pull_request:
+    branches: ['main']
+
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: yarn
+      - run: yarn install --immutable
+      - run: yarn run lint
+      - run: yarn run format
