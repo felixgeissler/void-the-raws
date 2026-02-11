@@ -78,7 +78,9 @@ void-the-raws encode /path/to/videos -c 4
 
 ### fix-gps-metadata
 
-Restores missing GPS timestamps by converting the photo's original creation time to UTC and writing it as GPSDateStamp and GPSTimeStamp for accurate timezone handling. Fixes the issue where Lightroom won't write GPSDateStamp and GPSTimeStamp on manually geotagged photos, which can lead to timezone shifts when importing JPEGs into Google Photos.
+Restores missing GPS timestamps by converting the photo's original creation time to UTC and writing it as GPSDateStamp and GPSTimeStamp for accurate timezone handling.
+
+This fixes the issue where Lightroom won't write GPSDateStamp and GPSTimeStamp on manually geotagged photos, which can lead to timezone shifts when importing JPEGs into Google Photos.
 
 ```bash
 void-the-raws fix-gps-metadata <dir> [options]
