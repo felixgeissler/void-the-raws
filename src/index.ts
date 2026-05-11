@@ -1,4 +1,5 @@
 import { confirm } from '@inquirer/prompts';
+import chalk from 'chalk';
 import { Command } from 'commander';
 import { ExifDateTime, exiftool } from 'exiftool-vendored';
 import { unlink } from 'fs/promises';
@@ -147,6 +148,77 @@ program
       console.log('Done!');
     }
   );
+
+program
+  .command('clean:fuji')
+  .argument('dir', 'Directory to clean up')
+  .description(
+    'Specialized cleanup for my Fuji X100VI flow. On camera rated JPEGs & RAFs are kept, while the rest is deleted.'
+  )
+  .action(async (dir: string) => {
+    const fujiDir = path.normalize(dir);
+    const rafFiles = await getFilesByExtension(fujiDir, 'RAF');
+    const jpgFiles = await getFilesByExtension(fujiDir, 'jpg');
+
+    const filesWithMetadata = (
+      await Promise.all(
+        [...rafFiles, ...jpgFiles].map(async (file, index, all) => {
+          const exifMetadata = await exiftool.read(path.join(fujiDir, file));
+          console.log(
+            `Fetching EXIF metadata from ${file} (${Math.round(((index + 1) / all.length) * 100)}%) ...`
+          );
+          return {
+            file,
+            exifMetadata,
+            markedForDeletion: !exifMetadata.Rating || exifMetadata.Rating < 1,
+          };
+        })
+      )
+    ).sort((a, b) => a.file.localeCompare(b.file));
+
+    for (const { file, exifMetadata, markedForDeletion } of filesWithMetadata) {
+      const fileName = path.basename(file);
+      const rating = exifMetadata.Rating || 0;
+      const shotAt =
+        exifMetadata.DateTimeOriginal instanceof ExifDateTime
+          ? exifMetadata.DateTimeOriginal.toDate()
+          : null;
+      const log = `${fileName}: 📸 ${
+        shotAt?.toLocaleDateString('de-DE', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }) || 'no date'
+      } Rating: ${rating} / 5 ${'⭐'.repeat(rating)}`;
+      if (markedForDeletion) {
+        console.log(chalk.red(`${log}`));
+      } else {
+        console.log(chalk.green(`${log}`));
+      }
+    }
+
+    // promt user to confirm deletion of unmarked files
+    const filesToDelete = filesWithMetadata.filter(f => f.markedForDeletion);
+    console.log('');
+    const isDeleteConfirmed = await confirm({
+      message: `Do you want to delete ${filesToDelete.length} files (${(filesToDelete.length / filesWithMetadata.length) * 100}% of ${filesWithMetadata.length} total files, see marked red)?`,
+      default: false,
+    });
+    if (!isDeleteConfirmed) {
+      console.log('Aborting...');
+      exit(0);
+    }
+    for (const { file } of filesToDelete) {
+      const filePath = path.join(fujiDir, file);
+      await unlink(filePath);
+      console.log(`🗑️ ${file} deleted`);
+    }
+
+    exit(0);
+  });
 
 program
   .command('encode')
